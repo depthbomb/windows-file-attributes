@@ -4,6 +4,15 @@ import { exec as execSync } from 'node:child_process';
 
 const exec = promisify(execSync);
 
+function escapeForSingleQuotedPowerShell(s: string): string {
+	// In single-quoted PowerShell strings a single-quote is escaped by doubling it.
+	return s.replace(/'/g, "''");
+}
+
+function pwshCommand(inner: string): string {
+	return `powershell -command "${inner}"`;
+}
+
 const writableAttributes = [FileAttribute.ARCHIVE, FileAttribute.HIDDEN, FileAttribute.NORMAL, FileAttribute.READONLY, FileAttribute.SYSTEM] as const;
 
 type WritableAttributes = typeof writableAttributes[number];
@@ -47,7 +56,9 @@ function getAttributeNamesFromNumeric(numericAttributes: number): string[] {
  */
 export async function getRawAttributes(path: string): Promise<number> {
 	try {
-		const { stdout } = await exec(`powershell -command "(Get-Item -Path '${path}' -Force).Attributes.value__"`);
+		const safePath   = escapeForSingleQuotedPowerShell(path);
+		const cmd        = pwshCommand(`(Get-Item -Path '${safePath}' -Force).Attributes.value__`);
+		const { stdout } = await exec(cmd);
 
 		return parseInt(stdout.trim(), 10);
 	} catch (error) {
@@ -89,7 +100,9 @@ export async function setAttributes(path: string, attributes: WritableAttributes
 	const numericValue = attributes.reduce((acc, attr) => acc | attr, 0);
 
 	try {
-		await exec(`powershell -command "Set-ItemProperty -Path '${path}' -Name Attributes -Value ${numericValue}"`);
+		const safePath = escapeForSingleQuotedPowerShell(path);
+		const cmd      = pwshCommand(`Set-ItemProperty -Path '${safePath}' -Name Attributes -Value ${numericValue}`);
+		await exec(cmd);
 	} catch (error) {
 		throw new Error(`Failed to set file attributes: ${error}`);
 	}
@@ -107,7 +120,9 @@ export async function addAttributes(path: string, attributes: WritableAttributes
 		const numericToAdd      = attributes.reduce((acc, attr) => acc | attr, 0);
 		const newAttributes     = currentAttributes | numericToAdd;
 
-		await exec(`powershell -command "Set-ItemProperty -Path '${path}' -Name Attributes -Value ${newAttributes}"`);
+		const safePath = escapeForSingleQuotedPowerShell(path);
+		const cmd      = pwshCommand(`Set-ItemProperty -Path '${safePath}' -Name Attributes -Value ${newAttributes}`);
+		await exec(cmd);
 	} catch (error) {
 		throw new Error(`Failed to add file attributes: ${error}`);
 	}
@@ -125,7 +140,9 @@ export async function removeAttributes(path: string, attributes: WritableAttribu
 		const numericToRemove   = attributes.reduce((acc, attr) => acc | attr, 0);
 		const newAttributes     = currentAttributes & ~numericToRemove;
 
-		await exec(`powershell -command "Set-ItemProperty -Path '${path}' -Name Attributes -Value ${newAttributes}"`);
+		const safePath = escapeForSingleQuotedPowerShell(path);
+		const cmd      = pwshCommand(`Set-ItemProperty -Path '${safePath}' -Name Attributes -Value ${newAttributes}`);
+		await exec(cmd);
 	} catch (error) {
 		throw new Error(`Failed to remove file attributes: ${error}`);
 	}
@@ -143,6 +160,7 @@ export async function hasAttributes(path: string, attributes: FileAttribute[]): 
 		const numericToCheck    = attributes.reduce((acc, attr) => acc | attr, 0);
 
 		return (currentAttributes & numericToCheck) === numericToCheck;
+
 	} catch (error) {
 		throw new Error(`Failed to check file attributes: ${error}`);
 	}
@@ -159,6 +177,7 @@ export async function hasAttribute(path: string, attribute: FileAttribute): Prom
 		const currentAttributes = await getRawAttributes(path);
 
 		return (currentAttributes & attribute) === attribute;
+
 	} catch (error) {
 		throw new Error(`Failed to check file attributes: ${error}`);
 	}

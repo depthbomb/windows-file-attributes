@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { it, expect, describe, beforeEach, afterEach } from 'vitest';
 import {
 	getRawAttributes,
 	getAttributes,

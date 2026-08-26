@@ -21,6 +21,10 @@
 	"publishConfig": {
 		"access": "public"
 	},
+	"resolutions": {
+		"socks": "2.8.9",
+		"undici": "6.28.0"
+	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/depthbomb/windows-file-attributes.git"
